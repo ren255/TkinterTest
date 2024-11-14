@@ -7,7 +7,7 @@ class View:
         
         self.window()
 
-        self.page_list = ["canvas","test","image_grid","loadImage","Frame_textlist", "grid_buttons","blank"]
+        self.page_list = ["input","test","image_grid","loadImage","Frame_textlist", "grid_buttons","blank"]
         self.make_frame()
         self.initialize_pages()
         

@@ -1,5 +1,5 @@
 import tkinter as tk
-from interface import page_interface
+from modules.interface import page_interface
 
 from tkinter import ttk
 

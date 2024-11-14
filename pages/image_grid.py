@@ -1,7 +1,7 @@
 import tkinter as tk
-from interface import page_interface
+from modules.interface import page_interface
 
-from ImageConverter import ImageConverter as imgCon
+from modules.ImageConverter import ImageConverter as imgCon
 
 class image_grid(page_interface):
     def __init__(self,parent_frame):

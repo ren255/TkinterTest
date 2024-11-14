@@ -164,3 +164,4 @@ cython_debug/
 # my files
 !test.py
 /.VSCodeCounter/2024-10-27_22-19-01
+/!test.py

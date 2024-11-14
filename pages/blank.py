@@ -1,5 +1,5 @@
 import tkinter as tk
-from interface import page_interface
+from modules.interface import page_interface
 
 class blank(page_interface):
     def __init__(self,parent_frame):
