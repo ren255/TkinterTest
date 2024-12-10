@@ -7,7 +7,7 @@ class View:
         
         self.window()
 
-        self.page_list = ["FileExplorerGUI","input","test","image_grid","Frame_textlist", "grid_buttons","blank"]
+        self.page_list = ["FileExplorerGUI","ScalableCanvas","input","image_grid","Frame_textlist", "grid_buttons","blank"]
         self.make_frame()
         self.initialize_pages()
         
@@ -36,6 +36,7 @@ class View:
     def make_frame(self):
         self.top_frame()
         self.body_frame()
+        
     # Frames
     def top_frame(self):
         frame_top = tk.Frame(self.root, bg="light blue", padx=25, pady=5)

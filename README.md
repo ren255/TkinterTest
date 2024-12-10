@@ -1,2 +1,5 @@
 # TkinterTest
-pyhon tkinter
+
+pyhon tkinterを使い色々な機能のテスト
+main.pyを実行することで動き、self.page_listに登録されている、pagesのfile１つ１つがpageになる。各pageはpage_interfaceを使用している。
+view.init時にすべてのベージのclassインスタンスが生成される。現在のpageのframeのみ保存され、pageを変えるたびにdestoryする。

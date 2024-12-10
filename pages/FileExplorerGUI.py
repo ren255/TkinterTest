@@ -4,7 +4,9 @@ from modules.interface import page_interface
 import os
 from PIL import Image, ImageTk
 import sqlite3
-import math
+
+from modules.myTkObject import Scalable_Frame
+import time
 
 class FileExplorerGUI(page_interface):
     def __init__(self, parent_frame):
@@ -14,46 +16,49 @@ class FileExplorerGUI(page_interface):
         self.folder_path.set(self.inputs_db.get_folder_name())
         self.image_processor = ImageProcessor()
         self.thumbnails = {}
-        self.current_image = None
-        self.grid_mode = tk.BooleanVar(value=True)
         self.images_per_row = tk.IntVar(value=3)
-        self.grid_photos = []
-        self.original_image = None
+        
+        self.update_images()
 
     def create_content(self):
         super().create_content()
-        self.frame_content.pack(fill=tk.BOTH, expand=True)
+        self.create_sidebar()
+        self.create_image_grid()
 
-        self.paned_window = tk.PanedWindow(self.frame_content, orient=tk.HORIZONTAL)
-        self.paned_window.pack(fill=tk.BOTH, expand=True)
+    def create_image_grid(self):
+        self.image_grid = Scalable_Frame(self.frame_content)
+        self.frame_content.update()
+        self.update_imageGUI()
 
-        lframe = tk.Frame(self.paned_window)
-        self.paned_window.add(lframe)
+    def create_sidebar(self):
+        self.sidebar = tk.Frame(self.frame_content)
+        self.sidebar.pack(side=tk.LEFT, fill=tk.Y)
 
-        self.file_listbox = tk.Listbox(lframe, width=30)
+        self.file_listbox = tk.Listbox(self.sidebar, width=30)
         self.file_listbox.pack(pady=10, fill=tk.BOTH, expand=True)
-        self.file_listbox.bind('<<ListboxSelect>>', self.on_select_file)
+        self.file_listbox.bind("<<ListboxSelect>>", self.on_select_file)
 
-        button_frame = tk.Frame(lframe)
-        button_frame.pack(fill=tk.X, pady=5)
+        control_frame = tk.Frame(self.sidebar)
+        control_frame.pack(fill=tk.X, pady=5)
 
-        tk.Button(button_frame, text="フォルダを選択", command=self.select_folder).pack(side=tk.LEFT, padx=5)
-        tk.Checkbutton(button_frame, text="Grid表示", variable=self.grid_mode, command=self.toggle_display_mode).pack(side=tk.LEFT)
+        tk.Button(
+            control_frame, text="フォルダを選択", command=self.select_folder
+        ).pack(side=tk.LEFT, padx=5)
 
-        self.slider = ttk.Scale(lframe, from_=1, to=10, orient=tk.HORIZONTAL, variable=self.images_per_row, command=self.update_grid)
-        self.slider.pack(fill=tk.X, pady=5)
+        self.images_per_row_slider = ttk.Scale(
+            self.sidebar,
+            from_=1,
+            to=10,
+            orient=tk.HORIZONTAL,
+            variable=self.images_per_row,
+            command=self.display_grid_images,
+        )
+        self.images_per_row_slider.pack(fill=tk.X, pady=5)
 
-        self.folder_label = tk.Label(lframe, text=self.folder_path.get())
+        self.folder_label = tk.Label(
+            self.sidebar, text=self.folder_path.get(), wraplength=200
+        )
         self.folder_label.pack(pady=5)
-
-        self.image_frame = tk.Frame(self.paned_window)
-        self.paned_window.add(self.image_frame)
-
-        self.image_canvas = tk.Canvas(self.image_frame)
-        self.image_canvas.pack(fill=tk.BOTH, expand=True)
-
-        self.update_file_list()
-        self.frame_content.bind('<Configure>', self.on_resize)
 
     def select_folder(self):
         folder = filedialog.askdirectory()
@@ -61,117 +66,72 @@ class FileExplorerGUI(page_interface):
             self.folder_path.set(folder)
             self.inputs_db.set_folder_name(folder)
             self.folder_label.config(text=folder)
-            self.update_file_list()
+            self.update_images()
+            self.update_imageGUI()
 
-    def update_file_list(self):
-        self.file_listbox.delete(0, tk.END)
+    def update_images(self):
         self.thumbnails.clear()
-        if self.folder_path.get():
-            files = self.image_processor.get_image_files(self.folder_path.get())
-            for file in files:
-                self.file_listbox.insert(tk.END, file)
-            
-            def load_thumbnails(index=0):
-                if index < len(files):
-                    self.load_thumbnail(files[index])
-                    self.frame_content.after(10, lambda: load_thumbnails(index + 1))
-                else:
-                    self.display_images()
-            
-            load_thumbnails()
-
-    def load_thumbnail(self, filename):
-        if filename not in self.thumbnails:
+        files = self.image_processor.get_image_files(self.folder_path.get())
+        
+        for filename in files:
             file_path = os.path.join(self.folder_path.get(), filename)
-            self.thumbnails[filename] = self.image_processor.load_image(file_path, (100, 100))
+            # サムネイルを生成し、辞書に保存
+            thumbnail = self.image_processor.load_image(file_path, (100, 100))
+            self.thumbnails[filename] = thumbnail
 
+    def update_imageGUI(self):
+        self.file_listbox.delete(0, tk.END)
+        for image in self.thumbnails:
+            self.file_listbox.insert(tk.END, image)
+        self.display_grid_images()
+        
     def on_select_file(self, event):
         if self.file_listbox.curselection():
             file_name = self.file_listbox.get(self.file_listbox.curselection())
-            if not self.grid_mode.get():
-                self.show_image(file_name)
+            # 画像表示機能を削除しました
 
-    def show_image(self, file_name):
-        file_path = os.path.join(self.folder_path.get(), file_name)
-        self.original_image = Image.open(file_path)
-        self.display_image()
+    def display_grid_images(self,event=None):
+        for widget in self.image_grid.winfo_children():
+            widget.destroy()
 
-    def display_image(self):
-        if self.original_image:
-            canvas_width = self.image_canvas.winfo_width()
-            canvas_height = self.image_canvas.winfo_height()
-
-            img_width, img_height = self.original_image.size
-            ratio = min(canvas_width/img_width, canvas_height/img_height)
-            new_width = int(img_width * ratio)
-            new_height = int(img_height * ratio)
-
-            resized_image = self.original_image.resize((new_width, new_height), Image.LANCZOS)
-            self.current_image = ImageTk.PhotoImage(resized_image)
-
-            self.image_canvas.delete("all")
-            x = canvas_width // 2
-            y = canvas_height // 2
-            self.image_canvas.create_image(x, y, anchor=tk.CENTER, image=self.current_image)
-
-    def display_images(self):
-        self.image_canvas.delete("all")
-        if self.grid_mode.get():
-            self.display_grid_images()
-        else:
-            self.display_image()
-
-    def display_grid_images(self):
-        canvas_width = max(1, self.image_canvas.winfo_width())
-        canvas_height = max(1, self.image_canvas.winfo_height())
+        grid_width = self.image_grid.winfo_width()
         images_per_row = max(1, self.images_per_row.get())
-        image_size = max(1, canvas_width // images_per_row)
+        image_size = max(1, grid_width // images_per_row)
 
-        self.grid_photos = []  # 画像の参照を保持するリスト
-        x, y = 0, 0
+        row = 0
+        col = 0
         for filename, img in self.thumbnails.items():
             resized_img = img.copy()
             resized_img.thumbnail((image_size, image_size), Image.LANCZOS)
             photo = ImageTk.PhotoImage(resized_img)
-            self.grid_photos.append(photo)  # 参照を保持
-            self.image_canvas.create_image(x, y, anchor=tk.NW, image=photo)
 
-            x += image_size
-            if x + image_size > canvas_width:
-                x = 0
-                y += image_size
-            
-            if y > canvas_height:
-                break  # キャンバスが縦に埋まったら停止
+            # ボタンのスタイルを調整し、凹み風にしない
+            button_style = {
+                "borderwidth": 0,
+                "highlightthickness": 0,
+                "bg": "white",  
+                "activebackground": "white", 
+            }
 
-        x, y = 0, 0
-        for filename, img in self.thumbnails.items():
-            resized_img = img.copy()
-            resized_img.thumbnail((image_size, image_size), Image.LANCZOS)
-            photo = ImageTk.PhotoImage(resized_img)
-            self.image_canvas.create_image(x, y, anchor=tk.NW, image=photo)
-            self.image_canvas.image = photo
+            button = tk.Button(
+                self.image_grid,
+                width=image_size,
+                height=image_size,
+                image=photo,
+                **button_style
+            )
 
-            x += image_size
-            if x + image_size > canvas_width:
-                x = 0
-                y += image_size
-            
-            if y > canvas_height:
-                break  # Stop if we've filled the canvas vertically
+            button.image = photo  # 参照を保持
+            button.grid(row=row, column=col, padx=2, pady=2)
 
-    def toggle_display_mode(self):
-        self.display_images()
+            col += 1
+            if col >= images_per_row:
+                col = 0
+                row += 1
 
-    def update_grid(self, event=None):
-        if self.grid_mode.get():
-            self.display_grid_images()
-
-    def on_resize(self, event):
-        self.display_images()
 
 class ImageProcessor:
-    SUPPORTED_FORMATS = ('.png', '.jpg', '.jpeg', '.gif', '.bmp')
+    SUPPORTED_FORMATS = (".png", ".jpg", ".jpeg", ".gif", ".bmp")
 
     @staticmethod
     def is_image_file(filename):
@@ -188,6 +148,7 @@ class ImageProcessor:
                 img.thumbnail(max_size, Image.LANCZOS)
             return img  # PIL Imageオブジェクトを返す
 
+
 class DBManager:
     def __init__(self, db_path):
         self.conn = sqlite3.connect(db_path)
@@ -203,9 +164,39 @@ class DBManager:
         return result[0][0] if result else ""
 
     def set_folder_name(self, folder_name):
-        self.query("UPDATE inputs SET data = ? WHERE name = 'foldername'", (folder_name,))
+        self.query(
+            "UPDATE inputs SET data = ? WHERE name = 'foldername'", (folder_name,)
+        )
 
     def __del__(self):
-        self.conn.close() 
+        self.conn.close()
+
+
+class Timer:
+    def __init__(self):
+        self.start_time = None
+        self.end_time = None
+
+    def start(self):
+        """タイマーを開始します。"""
+        self.start_time = time.time()
+
+    def end(self):
+        """タイマーを終了します。"""
+        if self.start_time is None:
+            print("Timer has not been started.")
+            return
+        self.end_time = time.time()
+
+    def printT(self):
+        """経過時間を表示します。"""
+        if self.start_time is None:
+            print("Timer has not been started.")
+            return
+        if self.end_time is None:
+            print("Timer is still running.")
+            elapsed_time = time.time() - self.start_time
+        else:
+            elapsed_time = self.end_time - self.start_time
         
-        
+        print(f"Elapsed time: {elapsed_time:.2f} seconds")
